@@ -121,6 +121,14 @@ class Punishment {
                     this.getMessage().guild.channels.delete(jailChannel.id);
                 }, this.getDuration());
                 break;
+            case "WARN":
+                // create embed
+                const warnEmbed = new CustomEmbed(CustomEmbed.getDefaults(this.getExecutor()));
+
+                // send message
+                warnEmbed.field["description"] = `Successfully warned <@${this.getTarget().user.id}>.\n(\`${this.getReason()}\`)`;
+                this.getMessage().channel.send({ embeds: [warnEmbed.create() ]});
+                break;
         }
     }
 
