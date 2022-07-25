@@ -89,39 +89,39 @@ class Punishment {
                 // set parent
                 jailChannel.setParent("1000398398437998602");
 
+                // add role
+                this.getTarget().roles.add(this.getJailRole().id);
+
                 // overwrite permissions
                 await jailChannel.permissionOverwrites.create(this.getTarget(), {
                     VIEW_CHANNEL: true,
                     SEND_MESSAGES: true,
                     READ_MESSAGE_HISTORY: true,
                     ATTACH_FILES: false
+                }).then(() => {
+                    // get duration string
+                    const jailDuration = Time.getTimeStr(this.getDuration());
+
+                    // send message
+                    jailEmbed.field["description"] = `Successfully jailed <@${this.getTarget().user.id}>.\n(\`${this.getReason()}, ${jailDuration}\`)`;
+                    this.getMessage().channel.send({ embeds: [jailEmbed.create()] });
+
+                    // create jail embed
+                    const n_jailEmbed = new CustomEmbed(CustomEmbed.getDefaults(this.getTarget().user));
+                    n_jailEmbed.field["description"] = `You have been jailed for \`${this.getReason()}\` by <@${this.getExecutor().id}>\nThis jail expires in ${jailDuration}.`;
+
+                    // send jail message
+                    jailChannel.send({ embeds: [n_jailEmbed.create()] });
+
+                    // set unjail timeout
+                    setTimeout(() => {
+                        // remove role
+                        this.getTarget().roles.remove(this.getJailRole().id);
+
+                        // delete channel
+                        this.getMessage().guild.channels.delete(jailChannel.id);
+                    }, this.getDuration());
                 });
-
-                // add role
-                this.getTarget().roles.add(this.getJailRole().id);
-
-                // get duration string
-                const jailDuration = Time.getTimeStr(this.getDuration());
-
-                // send message
-                jailEmbed.field["description"] = `Successfully jailed <@${this.getTarget().user.id}>.\n(\`${this.getReason()}, ${jailDuration}\`)`;
-                this.getMessage().channel.send({ embeds: [jailEmbed.create()] });
-
-                // create jail embed
-                const n_jailEmbed = new CustomEmbed(CustomEmbed.getDefaults(this.getTarget().user));
-                n_jailEmbed.field["description"] = `You have been jailed for \`${this.getReason()}\` by <@${this.getExecutor().id}>\nThis jail expires in ${jailDuration}.`;
-
-                // send jail message
-                jailChannel.send({ embeds: [n_jailEmbed.create()] });
-
-                // set unjail timeout
-                setTimeout(() => {
-                    // remove role
-                    this.getTarget().roles.remove(this.getJailRole().id);
-
-                    // delete channel
-                    this.getMessage().guild.channels.delete(jailChannel.id);
-                }, this.getDuration());
                 break;
             case "WARN":
                 // create embed
