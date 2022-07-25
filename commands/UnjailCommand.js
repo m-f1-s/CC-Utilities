@@ -3,11 +3,11 @@ const CustomEmbed = require("../utils/CustomEmbed.js");
 const Punishment = require("../punishments/Punishment.js");
 
 module.exports = {
-    name: "unmute",
+    name: "unjail",
     alias: [],
     execute(message, args) {
         // check for permission
-        if (!message.member.permissions.has(Permissions.FLAGS.MUTE_MEMBERS)) return;
+        if (!message.member.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return;
 
         // author variable
         const author = message.author;
@@ -17,7 +17,7 @@ module.exports = {
 
         // check argument length
         if (args.length != 1) {
-            embed.field["description"] = "Incorrect Usage!\n(`>unmute <@user>`)"
+            embed.field["description"] = "Incorrect Usage!\n(`>unjail <@user>`)"
             message.channel.send({ embeds: [embed.create()] });
             return;
         }
@@ -32,17 +32,17 @@ module.exports = {
         }
 
         // get muted role
-        let role = message.guild.roles.cache.find(role => role.name.toLowerCase() === "muted");
+        let role = message.guild.roles.cache.find(role => role.name.toLowerCase() === "jail");
 
         if (!role) {
-            embed.field["description"] = "Muted role does not exist. Create one before executing.";
+            embed.field["description"] = "Jail role does not exist. Create one before executing.";
             message.channel.send({ embeds: [embed.create()] });
             return;
         }
 
-        // if target isn't muted
+        // if target isn't jailed
         if (!target.roles.cache.has(role.id)) {
-            embed.field["description"] = "User is not muted!";
+            embed.field["description"] = "User is not jailed!";
             message.channel.send({ embeds: [embed.create()] });
             return;
         }
@@ -51,7 +51,7 @@ module.exports = {
         delete embed;
 
         // create punishment
-        const punishment = new Punishment(message, target, author, "UNMUTE", "N/A", "N/A");
+        const punishment = new Punishment(message, target, author, "UNJAIL", "N/A", "N/A");
 
         // execute and log
         punishment.execute();

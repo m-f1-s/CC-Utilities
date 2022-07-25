@@ -31,7 +31,7 @@ for (const file of commandFiles) {
 }
 
 // startup
-client.once("ready", () => console.log("CC Utilities has loaded."));
+client.once("ready", () => console.log("CC Utilities v1.0 has successfully loaded."));
 
 // on message
 client.on("messageCreate", (message) => {

@@ -42,7 +42,7 @@ module.exports = {
         delete embed;
 
         // create punishment
-        const punishment = new Punishment(message, target, author, "WARN", reason, "Permanent");
+        const punishment = new Punishment(message, target, author, "WARN", reason, "N/A");
 
         // execute punishment
         punishment.execute();

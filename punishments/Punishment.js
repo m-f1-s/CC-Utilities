@@ -1,9 +1,8 @@
-const { Permissions } = require("discord.js");
-
 const CustomEmbed = require("../utils/CustomEmbed");
 const Time = require("../utils/Time.js");
 
 const config = require("../config.json");
+const { GuildMember } = require("discord.js");
 
 class Punishment {
     constructor(message, target, executor, type, reason, duration) {
@@ -33,6 +32,18 @@ class Punishment {
     // get the duration
     getDuration() { return this.duration; }
 
+    // get muted role
+    getMuteRole() {
+        const role = this.getMessage().guild.roles.cache.find(role => role.name.toLowerCase() === "muted");
+        return role;
+    }
+
+    // get jailed role
+    getJailRole() {
+        const role = this.getMessage().guild.roles.cache.find(role => role.name.toLowerCase() === "jail");
+        return role;
+    }
+
     // execute
     async execute() {
         // get guild
@@ -41,11 +52,8 @@ class Punishment {
                 // create embed
                 const muteEmbed = new CustomEmbed(CustomEmbed.getDefaults(this.getExecutor()));
 
-                // get role
-                let muteRole = this.getMessage().guild.roles.cache.find(role => role.name.toLowerCase() === "muted");
-
                 // add
-                this.getTarget().roles.add(muteRole.id);
+                this.getTarget().roles.add(this.getMuteRole().id);
 
                 // send message
                 muteEmbed.field["description"] = `Successfully muted <@${this.getTarget().user.id}>.\n(\`${this.getReason()}\`)`;
@@ -55,11 +63,8 @@ class Punishment {
                 // create embed
                 const tempmuteEmbed = new CustomEmbed(CustomEmbed.getDefaults(this.getExecutor()));
 
-                // get role
-                const tempmuteRole = this.getMessage().guild.roles.cache.find(role => role.name.toLowerCase() === "muted");
-
                 // add
-                this.getTarget().roles.add(tempmuteRole.id);
+                this.getTarget().roles.add(this.getMuteRole().id);
 
                 // get duration string
                 const tempmuteDuration = Time.getTimeStr(this.getDuration());
@@ -69,7 +74,7 @@ class Punishment {
                 this.getMessage().channel.send({ embeds: [tempmuteEmbed.create() ]});
 
                 // set unmute timeout
-                setTimeout(() => this.getTarget().roles.remove(tempmuteRole.id), this.getDuration());
+                setTimeout(() => this.getTarget().roles.remove(this.getMuteRole().id), this.getDuration());
                 break;
             case "JAIL":
                 // create embed
@@ -84,22 +89,16 @@ class Punishment {
                 // set parent
                 jailChannel.setParent("1000398398437998602");
 
-                // delay
-                setTimeout(() => {
-                    // overwrite permissions
-                    jailChannel.permissionOverwrites.create(this.getTarget(), {
-                        VIEW_CHANNEL: true,
-                        SEND_MESSAGES: true,
-                        READ_MESSAGE_HISTORY: true,
-                        ATTACH_FILES: false
-                    });
-                }, 500);
-
-                // get role
-                const jailRole = this.getMessage().guild.roles.cache.find(role => role.name.toLowerCase() === "jail");
+                // overwrite permissions
+                await jailChannel.permissionOverwrites.create(this.getTarget(), {
+                    VIEW_CHANNEL: true,
+                    SEND_MESSAGES: true,
+                    READ_MESSAGE_HISTORY: true,
+                    ATTACH_FILES: false
+                });
 
                 // add role
-                this.getTarget().roles.add(jailRole.id);
+                this.getTarget().roles.add(this.getJailRole().id);
 
                 // get duration string
                 const jailDuration = Time.getTimeStr(this.getDuration());
@@ -117,7 +116,10 @@ class Punishment {
 
                 // set unjail timeout
                 setTimeout(() => {
-                    this.getTarget().roles.remove(jailRole.id);
+                    // remove role
+                    this.getTarget().roles.remove(this.getJailRole().id);
+
+                    // delete channel
                     this.getMessage().guild.channels.delete(jailChannel.id);
                 }, this.getDuration());
                 break;
@@ -128,6 +130,103 @@ class Punishment {
                 // send message
                 warnEmbed.field["description"] = `Successfully warned <@${this.getTarget().user.id}>.\n(\`${this.getReason()}\`)`;
                 this.getMessage().channel.send({ embeds: [warnEmbed.create() ]});
+                break;
+            case "KICK":
+                // create embeds
+                const kickEmbed = new CustomEmbed(CustomEmbed.getDefaults(this.getExecutor()));
+                const kickTargetEmbed = new CustomEmbed({
+                    timestamp: true,
+                    color: "AQUA",
+                    footer: {
+                        text: "CC Utilities",
+                        iconURL: "https://cdn.discordapp.com/attachments/988130736290820108/1000076564664430684/E3237438-7EBF-4988-B76D-96F16FA965FA.gif"
+                    },
+                    description: `You have been kicked for \`${this.getReason()}\` by ${this.getExecutor().username}.`
+                });
+
+                // try to send target the kick message
+                this.getTarget().send({ embeds: [kickTargetEmbed.create()] }).catch((err) => {
+                    // log if error
+                    console.log("Couldn't send " + this.getTarget().user.tag + " kick message because DMs are disabled.\n(" + err + ")");
+                // after message is sent, kick member
+                }).then(async () => {
+                    this.getMessage().guild.members.kick(this.getTarget()).then((kickInfo) => {
+                        // send message
+                        kickEmbed.field["description"] = `Successfully kicked <@${this.getTarget().user.id}>.\n(\`${this.getReason()}\`)`;
+                        this.getMessage().channel.send({ embeds: [kickEmbed.create() ]});
+                    });
+                });
+                break;
+            case "BAN":
+                // create embeds
+                const banEmbed = new CustomEmbed(CustomEmbed.getDefaults(this.getExecutor()));
+                const banEmbedTarget = new CustomEmbed({
+                    timestamp: true,
+                    color: "AQUA",
+                    footer: {
+                        text: "CC Utilities",
+                        iconURL: "https://cdn.discordapp.com/attachments/988130736290820108/1000076564664430684/E3237438-7EBF-4988-B76D-96F16FA965FA.gif"
+                    },
+                    description: `You have been banned for \`${this.getReason()}\` by ${this.getExecutor().username}.\n**Appeal link:** https://discord.gg/bP24jaBBWh`
+                });
+
+                // try to send target the kick message
+                this.getTarget().send({ embeds: [banEmbedTarget.create()] }).catch((err) => {
+                    // log if error
+                    console.log("Couldn't send " + this.getTarget().user.tag + " ban message because DMs are disabled.\n(" + err + ")");
+                // after message is sent, kick member
+                }).then(async () => {
+                    this.getTarget().ban({
+                        deleteMessageDays: 1,
+                        reason: this.getReason()
+                    }).then(() => {
+                        // send message
+                        banEmbed.field["description"] = `Successfully banned <@${this.getTarget().user.id}>.\n(\`${this.getReason()}\`)`;
+                        this.getMessage().channel.send({ embeds: [banEmbed.create() ]});
+                    });
+                });
+                break;
+            case "UNMUTE":
+                // create embed
+                const unmuteEmbed = new CustomEmbed(CustomEmbed.getDefaults(this.getExecutor()));
+
+                // unmute target
+                this.getTarget().roles.remove(this.getMuteRole().id);
+
+                // send embed
+                unmuteEmbed.field["description"] = "Successfully unmuted <@" + this.getTarget().id + ">."
+                this.getMessage().channel.send({ embeds: [unmuteEmbed.create()] });
+                break;
+            case "UNBAN":
+                // create embed
+                const unbanEmbed = new CustomEmbed(CustomEmbed.getDefaults(this.getExecutor()));
+
+                // unmute target
+                this.getMessage().guild.members.unban(this.getTarget());
+
+                // send embed
+                unbanEmbed.field["description"] = "Successfully unbanned <@" + this.getTarget() + ">."
+                this.getMessage().channel.send({ embeds: [unbanEmbed.create()] });
+                break;
+            case "UNJAIL":
+                // create embed
+                const unjailEmbed = new CustomEmbed(CustomEmbed.getDefaults(this.getExecutor()));
+
+                // unjail target
+                this.getTarget().roles.remove(this.getJailRole().id);
+
+                // send embed
+                unjailEmbed.field["description"] = "Successfully unjailed <@" + this.getTarget().id + ">.\nClosing jail channel in 5 seconds..."
+                this.getMessage().channel.send({ embeds: [unjailEmbed.create()] });
+
+                // delete jail channel
+                setTimeout(() => {
+                    // get jail channel
+                    const unjailChannel = this.getMessage().guild.channels.cache.find(channel => channel.name.toLowerCase() === `${this.getTarget().user.username}-${this.getTarget().user.discriminator}`.toLowerCase());
+                    
+                    // delete jail channel
+                    this.getMessage().guild.channels.delete(unjailChannel.id);
+                }, 5000);
                 break;
         }
     }
@@ -147,13 +246,19 @@ class Punishment {
             return;
         }
 
+        // correct duration
         let duration = this.getDuration();
-        if (duration !== "Permanent")
+        if (duration !== "Permanent" && duration !== "N/A")
             duration = Time.getTimeStr(this.getDuration());
+
+        // correct target
+        let target = this.getTarget();
+        if (target instanceof GuildMember)
+            target = `<@${this.getTarget().id}>`;
 
         // create fields
         const fields = [
-            {name: "Target", value: `<@${this.getTarget().id}>`, inline: true},
+            {name: "Target", value: target, inline: true},
             {name: "Executor", value: `<@${this.getExecutor().id}>`, inline: true},
             {name: "Type", value: this.getType(), inline: true},
             {name: "Reason", value: this.getReason(), inline: true},

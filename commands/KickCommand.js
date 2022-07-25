@@ -3,11 +3,11 @@ const CustomEmbed = require("../utils/CustomEmbed.js");
 const Punishment = require("../punishments/Punishment.js");
 
 module.exports = {
-    name: "unmute",
+    name: "kick",
     alias: [],
     execute(message, args) {
         // check for permission
-        if (!message.member.permissions.has(Permissions.FLAGS.MUTE_MEMBERS)) return;
+        if (!message.member.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return;
 
         // author variable
         const author = message.author;
@@ -16,8 +16,8 @@ module.exports = {
         const embed = new CustomEmbed(CustomEmbed.getDefaults(author));
 
         // check argument length
-        if (args.length != 1) {
-            embed.field["description"] = "Incorrect Usage!\n(`>unmute <@user>`)"
+        if (args.length < 2) {
+            embed.field["description"] = "Incorrect Usage!\n(`>kick <@user> <reason>`)"
             message.channel.send({ embeds: [embed.create()] });
             return;
         }
@@ -31,27 +31,18 @@ module.exports = {
             return;
         }
 
-        // get muted role
-        let role = message.guild.roles.cache.find(role => role.name.toLowerCase() === "muted");
-
-        if (!role) {
-            embed.field["description"] = "Muted role does not exist. Create one before executing.";
-            message.channel.send({ embeds: [embed.create()] });
-            return;
-        }
-
-        // if target isn't muted
-        if (!target.roles.cache.has(role.id)) {
-            embed.field["description"] = "User is not muted!";
-            message.channel.send({ embeds: [embed.create()] });
-            return;
+        // get reason
+        let reason = "";
+        for (let i = 1; i < args.length; i++) {
+            if (reason.length === 0) reason = args[i];
+            else reason = reason + " " + args[i];
         }
 
         // remove embed variable
         delete embed;
 
         // create punishment
-        const punishment = new Punishment(message, target, author, "UNMUTE", "N/A", "N/A");
+        const punishment = new Punishment(message, target, author, "KICK", reason, "N/A");
 
         // execute and log
         punishment.execute();
