@@ -12,7 +12,7 @@ Moderation and utility bot for the CC (gaming) server.
  - Unjail
  - Ban
  - Unban
- - Modlogs
+ - Modstats
  - Lock
  - Slowmode
  - Closejail
