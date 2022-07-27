@@ -31,6 +31,13 @@ module.exports = {
             return;
         }
 
+        // check if target is higher than executor
+        if (target.roles.highest.position >= message.member.roles.highest.position) {
+            embed.field["description"] = "You cannot ban someone with a higher role than you."
+            message.channel.send({ embeds: [embed.create()] });
+            return;
+        }
+
         // get reason
         let reason = "";
         for (let i = 1; i < args.length; i++) {

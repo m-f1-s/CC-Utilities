@@ -1,9 +1,10 @@
 const { Permissions } = require("discord.js");
+
 const CustomEmbed = require("../utils/CustomEmbed.js");
-const Punishment = require("../punishments/Punishment.js");
+const Logs = require("../punishments/Logs.js");
 
 module.exports = {
-    name: "unjail",
+    name: "modlogs",
     alias: [],
     execute(message, args) {
         // check for permission
@@ -17,7 +18,7 @@ module.exports = {
 
         // check argument length
         if (args.length != 1) {
-            embed.field["description"] = "Incorrect Usage!\n(`>unjail <@user>`)"
+            embed.field["description"] = "Incorrect Usage!\n(`>modlogs <@user>`)"
             message.channel.send({ embeds: [embed.create()] });
             return;
         }
@@ -31,33 +32,24 @@ module.exports = {
             return;
         }
 
-        // get muted role
-        let role = message.guild.roles.cache.find(role => role.name.toLowerCase() === "jail");
+        // get stats
+        const stats = Logs.getStats(message.guild.id, target.user.id);
 
-        if (!role) {
-            embed.field["description"] = "Jail role does not exist. Create one before executing.";
+        if (stats) {
+            // create fields
+            const fields = [
+                {name: "Warns", value: stats.WARN.toString(), inline: true},
+                {name: "Mutes", value: stats.MUTE.toString(), inline: true},
+                {name: "Kicks", value: stats.KICK.toString(), inline: true},
+                {name: "Jails", value: stats.JAIL.toString(), inline: true},
+                {name: "Bans", value: stats.BAN.toString(), inline: true},
+            ]
+
+            // update embed
+            embed.field["fields"] = fields;
+
+            // send message
             message.channel.send({ embeds: [embed.create()] });
-            return;
         }
-
-        // if target isn't jailed
-        if (!target.roles.cache.has(role.id)) {
-            embed.field["description"] = "User is not jailed!";
-            message.channel.send({ embeds: [embed.create()] });
-            return;
-        }
-
-        // remove embed variable
-        delete embed;
-
-        // create punishment
-        const punishment = new Punishment(message, target, author, "UNJAIL", "N/A", "N/A");
-
-        // execute and log
-        punishment.execute();
-        punishment.log();
-
-        // delete message
-        message.delete(message);
     }
 }

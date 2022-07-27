@@ -1,4 +1,4 @@
-const { Permissions } = require("discord.js");
+const { Permissions, Role, ThreadChannel } = require("discord.js");
 const CustomEmbed = require("../utils/CustomEmbed.js");
 const Punishment = require("../punishments/Punishment.js");
 const Time = require("../utils/Time.js");
@@ -6,9 +6,9 @@ const Time = require("../utils/Time.js");
 module.exports = {
     name: "jail",
     alias: [],
-    execute(message, args) {
+    async execute(message, args) {
         // check for permission
-        if (!message.member.permissions.has(Permissions.FLAGS.KICK_MEMBERS)) return;
+        if (!message.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) return;
 
         // author variable
         const author = message.author;
@@ -52,9 +52,27 @@ module.exports = {
         let role = message.guild.roles.cache.find(role => role.name.toLowerCase() === "jail");
 
         if (!role) {
-            embed.field["description"] = "Jail role does not exist. Create one before executing.";
-            message.channel.send({ embeds: [embed.create()] });
-            return;
+            try {
+                // create channel
+                const newRole = await message.guild.roles.create({name: "jail"});
+
+                if (newRole instanceof Role)
+                    role = newRole;
+
+                // overwrite permissions
+                await message.guild.channels.cache.forEach(async (channel) => {
+                    if (channel instanceof ThreadChannel) return;
+
+                    await channel.permissionOverwrites.create(role, {
+                        VIEW_CHANNEL: false,
+                        SEND_MESSAGES: false,
+                    })
+                });
+            } catch (err) {
+                embed.field["description"] = "Couldn't create jail role. Check if I have administrator permissions."
+                message.channel.send({ embeds: [embed.create()] });
+                return;
+            }
         }
 
         // if target is muted

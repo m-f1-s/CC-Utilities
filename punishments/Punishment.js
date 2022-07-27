@@ -1,8 +1,11 @@
 const CustomEmbed = require("../utils/CustomEmbed");
 const Time = require("../utils/Time.js");
+const Logs = require("./Logs.js");
 
 const config = require("../config.json");
+
 const { GuildMember } = require("discord.js");
+const fs = require("fs");
 
 class Punishment {
     constructor(message, target, executor, type, reason, duration) {
@@ -90,38 +93,43 @@ class Punishment {
                 jailChannel.setParent("1000398398437998602");
 
                 // add role
-                this.getTarget().roles.add(this.getJailRole().id);
+                this.getTarget().roles.add(this.getJailRole().id).then(async () => {
+                    // overwrite permissions
+                    await jailChannel.permissionOverwrites.create(this.getTarget(), {
+                        VIEW_CHANNEL: true,
+                        SEND_MESSAGES: true,
+                        READ_MESSAGE_HISTORY: true,
+                        ATTACH_FILES: false
+                    }).then(() => {
+                        // get duration string
+                        const jailDuration = Time.getTimeStr(this.getDuration());
 
-                // overwrite permissions
-                await jailChannel.permissionOverwrites.create(this.getTarget(), {
-                    VIEW_CHANNEL: true,
-                    SEND_MESSAGES: true,
-                    READ_MESSAGE_HISTORY: true,
-                    ATTACH_FILES: false
-                }).then(() => {
-                    // get duration string
-                    const jailDuration = Time.getTimeStr(this.getDuration());
+                        // send message
+                        jailEmbed.field["description"] = `Successfully jailed <@${this.getTarget().user.id}>.\n(\`${this.getReason()}, ${jailDuration}\`)`;
+                        this.getMessage().channel.send({ embeds: [jailEmbed.create()] });
 
-                    // send message
-                    jailEmbed.field["description"] = `Successfully jailed <@${this.getTarget().user.id}>.\n(\`${this.getReason()}, ${jailDuration}\`)`;
-                    this.getMessage().channel.send({ embeds: [jailEmbed.create()] });
+                        // create jail embed
+                        const n_jailEmbed = new CustomEmbed(CustomEmbed.getDefaults(this.getTarget().user));
+                        n_jailEmbed.field["description"] = `You have been jailed for \`${this.getReason()}\` by <@${this.getExecutor().id}>\nThis jail expires in ${jailDuration}.`;
 
-                    // create jail embed
-                    const n_jailEmbed = new CustomEmbed(CustomEmbed.getDefaults(this.getTarget().user));
-                    n_jailEmbed.field["description"] = `You have been jailed for \`${this.getReason()}\` by <@${this.getExecutor().id}>\nThis jail expires in ${jailDuration}.`;
+                        // send jail message
+                        jailChannel.send({ embeds: [n_jailEmbed.create()] });
 
-                    // send jail message
-                    jailChannel.send({ embeds: [n_jailEmbed.create()] });
+                        // set unjail timeout
+                        setTimeout(() => {
+                            // remove role
+                            this.getTarget().roles.remove(this.getJailRole().id);
 
-                    // set unjail timeout
-                    setTimeout(() => {
-                        // remove role
-                        this.getTarget().roles.remove(this.getJailRole().id);
+                            // check if already deleted
+                            if (!this.getMessage().guild.channels.cache.find(channel => channel.id === jailChannel.id))
+                                return;
 
-                        // delete channel
-                        this.getMessage().guild.channels.delete(jailChannel.id);
-                    }, this.getDuration());
+                            // delete channel
+                            this.getMessage().guild.channels.delete(jailChannel.id);
+                        }, this.getDuration());
+                    });
                 });
+
                 break;
             case "WARN":
                 // create embed
@@ -215,15 +223,22 @@ class Punishment {
                 // unjail target
                 this.getTarget().roles.remove(this.getJailRole().id);
 
+                // get channel name
+                const unjailChannelName = `${this.getTarget().user.username}-${this.getTarget().user.discriminator}`.toLowerCase().replaceAll("\ ", "-");
+
+                // get jail channel
+                const unjailChannel = this.getMessage().guild.channels.cache.find(channel => channel.name.toLowerCase() === unjailChannelName);
+
                 // send embed
                 unjailEmbed.field["description"] = "Successfully unjailed <@" + this.getTarget().id + ">.\nClosing jail channel in 5 seconds..."
                 this.getMessage().channel.send({ embeds: [unjailEmbed.create()] });
 
                 // delete jail channel
                 setTimeout(() => {
-                    // get jail channel
-                    const unjailChannel = this.getMessage().guild.channels.cache.find(channel => channel.name.toLowerCase() === `${this.getTarget().user.username}-${this.getTarget().user.discriminator}`.toLowerCase());
-                    
+                    // check if channel was deleted
+                    if (!this.getMessage().guild.channels.cache.find(channel => channel.id === unjailChannel.id))
+                        return;
+
                     // delete jail channel
                     this.getMessage().guild.channels.delete(unjailChannel.id);
                 }, 5000);
@@ -270,6 +285,34 @@ class Punishment {
 
         // send message
         channel.send({ embeds: [embed.create()] });
+
+        // check if an undoing of punishment
+        if (this.getType().startsWith("UN"))
+            return;
+
+        // get ids
+        const guildId = this.getMessage().guild.id;
+        const executorId = this.getExecutor().id;
+        const type = this.getType().replaceAll("TEMP", "");
+
+        // create logs instance
+        const logs = new Logs(guildId, executorId, type);
+
+        // check if server is null
+        if (!logs.serverInitialized()) {
+            // initialize server
+            logs.initializeServer();
+
+            // return (needed)
+            return;
+        }
+
+        // if executor is null
+        if (!logs.userInitialized())
+            logs.initializeUser();
+
+        // log user
+        logs.updateStats();
     }
 }
 

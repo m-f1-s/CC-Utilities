@@ -1,11 +1,11 @@
-const { Permissions } = require("discord.js");
+const { Permissions, Role, ThreadChannel } = require("discord.js");
 const CustomEmbed = require("../utils/CustomEmbed.js");
 const Punishment = require("../punishments/Punishment.js");
 
 module.exports = {
     name: "mute",
     alias: [],
-    execute(message, args) {
+    async execute(message, args) {
         // check for permission
         if (!message.member.permissions.has(Permissions.FLAGS.MUTE_MEMBERS)) return;
 
@@ -42,9 +42,27 @@ module.exports = {
         let role = message.guild.roles.cache.find(role => role.name.toLowerCase() === "muted");
 
         if (!role) {
-            embed.field["description"] = "Muted role does not exist. Create one before executing.";
-            message.channel.send({ embeds: [embed.create()] });
-            return;
+            try {
+                // create channel
+                const newRole = await message.guild.roles.create({name: "muted"});
+
+                if (newRole instanceof Role)
+                    role = newRole;
+
+                // overwrite permissions
+                await message.guild.channels.cache.forEach(async (channel) => {
+                    if (channel instanceof ThreadChannel) return;
+
+                    await channel.permissionOverwrites.create(role, {
+                        ADD_REACTIONS: false,
+                        SEND_MESSAGES: false,
+                    })
+                });
+            } catch (err) {
+                embed.field["description"] = "Couldn't create muted role. Check if I have administrator permissions."
+                message.channel.send({ embeds: [embed.create()] });
+                return;
+            }
         }
 
         // if target is muted
